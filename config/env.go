@@ -35,6 +35,10 @@ type Config struct {
 	GOOGLE_DRIVE_CREDENTIALS_PATH string
 	GOOGLE_DRIVE_TOKEN_PATH       string
 	GOOGLE_DRIVE_REDIRECT_URL     string
+
+	//Kafka configs
+	KafkaBrokers string
+	KafkaGroupID string
 }
 
 func Load() error {
@@ -66,6 +70,10 @@ func Load() error {
 		GOOGLE_DRIVE_CREDENTIALS_PATH: getEnvOrDefault("GOOGLE_DRIVE_CREDENTIALS_PATH", ""),
 		GOOGLE_DRIVE_TOKEN_PATH:       getEnvOrDefault("GOOGLE_DRIVE_TOKEN_PATH", ""),
 		GOOGLE_DRIVE_REDIRECT_URL:     getEnvOrDefault("GOOGLE_DRIVE_REDIRECT_URL", ""),
+
+		//Kafka configs
+		KafkaBrokers: getEnvOrDefault("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID: getEnvOrDefault("KAFKA_GROUP_ID", "my-group"),
 	}
 
 	return nil

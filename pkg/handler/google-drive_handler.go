@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 	"web-service/config"
 	googledrive "web-service/pkg/google-drive"
+	"web-service/pkg/kafka"
 	"web-service/pkg/utils"
 
 	"github.com/gorilla/mux"
@@ -110,11 +112,44 @@ func handleGoogleDriveUpload(w http.ResponseWriter, r *http.Request) utils.Respo
 	driveFile := &drive.File{Name: header.Filename}
 	_, err = srv.Files.Create(driveFile).Media(file).Do()
 	if err != nil {
-		http.Error(w, "Unable to upload file: "+err.Error(), http.StatusInternalServerError)
 		return utils.InternalServerError("Unable to upload file: " + err.Error())
 	}
 
+	go func() {
+		kafka.Produce("file_uploaded", []string{
+			fmt.Sprintf("File '%s' uploaded successfully", header.Filename),
+		})
+	}()
+
 	return utils.SuccessResponse("File uploaded successfully", nil)
+}
+
+func getFileUploadEvent(w http.ResponseWriter, r *http.Request) utils.Response {
+	message := kafka.Consume([]string{"file_uploaded"}, 10, 5*time.Second)
+
+	if message == nil {
+		return utils.NotFoundError("No file uploaded event found", nil)
+	}
+
+	res := struct {
+		Key       string `json:"key"`
+		Value     string `json:"value"`
+		Topic     string `json:"topic"`
+		Timestamp string `json:"timestamp"`
+	}{
+		Key:       string(message.Key),
+		Value:     string(message.Value),
+		Topic:     *message.TopicPartition.Topic,
+		Timestamp: message.Timestamp.String(),
+	}
+
+	resJSON, err := json.Marshal(res)
+
+	if err != nil {
+		return utils.InternalServerError("Failed to marshal response: " + err.Error())
+	}
+
+	return utils.SuccessResponse("File uploaded event", json.RawMessage(resJSON))
 }
 
 func GoogleDriveRoutes(r *mux.Router) {
@@ -124,4 +159,5 @@ func GoogleDriveRoutes(r *mux.Router) {
 	googleDriveRouter.HandleFunc("/auth/google", handleGoogleDriveAuth).Methods(http.MethodGet)
 	googleDriveRouter.HandleFunc("/auth/google/callback", utils.WrapHandler(handleGoogleDriveCallback)).Methods(http.MethodGet)
 	googleDriveRouter.HandleFunc("/upload", utils.WrapHandler(handleGoogleDriveUpload)).Methods(http.MethodPost)
+	googleDriveRouter.HandleFunc("/upload/get-event", utils.WrapHandler(getFileUploadEvent)).Methods(http.MethodGet)
 }

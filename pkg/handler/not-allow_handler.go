@@ -21,5 +21,4 @@ func notAllowResponse(w http.ResponseWriter, r *http.Request) {
 
 func NotAllowHandler(r *mux.Router) {
 	r.MethodNotAllowedHandler = http.HandlerFunc(notAllowResponse)
-
 }

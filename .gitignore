@@ -1,0 +1,44 @@
+# Bỏ qua các file và thư mục cấu hình môi trường
+.env
+
+# Bỏ qua các thư mục và file biên dịch
+/tmp
+/tmp/*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Bỏ qua các thư mục và file của IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Bỏ qua các thư mục và file của hệ điều hành
+.DS_Store
+Thumbs.db
+
+# Bỏ qua các thư mục và file của Go
+/bin
+/bin/*
+/pkg
+/pkg/*
+/vendor
+/vendor/*
+/coverage.out
+
+# Bỏ qua các file log
+*.log
+
+# Bỏ qua các file tạm thời
+*.tmp
+*.temp
+*.bak
+*.old
+
+# Bỏ qua các file của Docker
+docker-compose.override.yml

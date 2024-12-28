@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"web-service/config"
-	"web-service/pkg/database"
 	googledrive "web-service/pkg/google-drive"
 	"web-service/pkg/handler"
+	"web-service/pkg/kafka"
 	"web-service/pkg/middlewares"
 
 	"github.com/gorilla/mux"
@@ -28,12 +29,12 @@ type ServerConfig struct {
 	ShutdownDelay time.Duration
 }
 
-func loadEnv() error {
+var wg sync.WaitGroup
+
+func loadEnv() {
 	if err := config.Load(); err != nil {
-		log.Fatal(err)
-		return err
+		log.Fatalf("Failed to load environment variables: %v", err)
 	}
-	return nil
 }
 
 func setupRouter() *mux.Router {
@@ -43,6 +44,7 @@ func setupRouter() *mux.Router {
 	r.Use(middlewares.CorsMiddleware)
 	r.Use(middlewares.LoggingMiddleware)
 	r.Use(middlewares.ErrorHandlerMiddleware)
+	r.Use(middlewares.RecoverMiddleware)
 
 	// Not Found and Not Allow Handler
 	handler.NotFoundHandler(r)
@@ -91,18 +93,53 @@ func startServer(cfg *ServerConfig, handler http.Handler) *http.Server {
 	return srv
 }
 
-func waitForShutdown(srv *http.Server, timeout time.Duration) {
+func waitForShutdown(ctx context.Context, srv *http.Server) {
+	// Handle system signals
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	<-c
+	select {
+	case <-ctx.Done():
+	case <-c:
+		log.Println("Shutdown signal received")
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// Graceful shutdown
+	shutdownCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server Shutdown Failed:%+v", err)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server Shutdown failed: %v", err)
 	}
-	log.Println("Server gracefully stopped")
+}
+
+func initGoogleDrive() {
+	googledrive.Init()
+}
+
+func initKafka(ctx context.Context) {
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		if err := kafka.InitProducer(config.Env.KafkaBrokers); err != nil {
+			log.Fatalf("Failed to initialize Kafka producer: %v", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := kafka.InitConsumer(config.Env.KafkaBrokers, config.Env.KafkaGroupID); err != nil {
+			log.Fatalf("Failed to initialize Kafka consumer: %v", err)
+		}
+	}()
+
+	// Wait for Kafka to be ready or context cancel
+	go func() {
+		select {
+		case <-ctx.Done():
+			log.Println("Kafka initialization canceled")
+		}
+	}()
 }
 
 func main() {
@@ -110,15 +147,22 @@ func main() {
 
 	cfg := getServerConfig()
 	router := setupRouter()
+
+	// Create context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Initialize Google Drive and Kafka
+	initGoogleDrive()
+	initKafka(ctx)
+
+	// Start HTTP server
 	srv := startServer(cfg, router)
 
-	client, err := database.MongoDBClient()
-	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-	defer database.DisconnectMongoDB(client)
+	// Wait for shutdown signal
+	waitForShutdown(ctx, srv)
 
-	googledrive.Init()
-
-	waitForShutdown(srv, cfg.ShutdownDelay)
+	// Wait for other services to close
+	wg.Wait()
+	log.Println("All services gracefully stopped")
 }
