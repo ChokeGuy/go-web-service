@@ -3,10 +3,10 @@ tmp_dir = "tmp"
 
 [build]
 pre_cmd = ["echo hello air > pre_cmd.txt"]
-cmd = "go build -o ./tmp/main ./cmd"  # Xóa phần mở rộng .exe
+cmd = "go build -o ./tmp/main ./cmd" 
 post_cmd = ["echo hello air > post_cmd.txt"]
-bin = "tmp/main"  # Thay đổi từ tmp\\main.exe thành tmp/main
-full_bin = "./tmp/main"  # Thay đổi từ .\\tmp\\main.exe thành ./tmp/main
+bin = "tmp/main"
+full_bin = "./tmp/main" 
 args_bin = ["hello", "world"]
 include_ext = ["go", "tpl", "tmpl", "html", "json"]
 exclude_dir = ["assets", "tmp", "vendor", "frontend/node_modules"]
