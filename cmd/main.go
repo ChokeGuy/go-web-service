@@ -135,10 +135,8 @@ func initKafka(ctx context.Context) {
 
 	// Wait for Kafka to be ready or context cancel
 	go func() {
-		select {
-		case <-ctx.Done():
-			log.Println("Kafka initialization canceled")
-		}
+		<-ctx.Done()
+		log.Println("Kafka initialization canceled")
 	}()
 }
 
