@@ -20,8 +20,6 @@ Thumbs.db
 
 /bin
 /bin/*
-/pkg
-/pkg/*
 /vendor
 /vendor/*
 /coverage.out
