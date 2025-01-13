@@ -2,21 +2,15 @@ package main
 
 import "strings"
 
-func stringMatching(words []string) []string {
-	result := make([]string, 0)
-	for _, value := range words {
-		for _, value2 := range words {
-			if value == value2 || len(value) > len(value2) {
-				continue
-			} else if strings.Contains(value2, value) {
-				result = append(result, value)
-				break
-			}
-		}
+func mostWordsFound(sentences []string) int {
+	maxLen := 0
+	for _, sentence := range sentences {
+		words := strings.Split(sentence, " ")
+		maxLen = max(maxLen, len(words))
 	}
-	return result
+
+	return maxLen
 }
 
 func main() {
-
 }

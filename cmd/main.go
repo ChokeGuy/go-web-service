@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"web-service/config"
+	"web-service/pkg/eth"
 	googledrive "web-service/pkg/google-drive"
 	"web-service/pkg/handler"
 	"web-service/pkg/kafka"
@@ -55,6 +56,7 @@ func setupRouter() *mux.Router {
 	handler.GoogleDriveRoutes(apiV1Router)
 	handler.HomeRoutes(apiV1Router)
 	handler.ProductRoutes(apiV1Router)
+	handler.SignTransactionRoutes(apiV1Router)
 
 	return r
 }
@@ -116,6 +118,14 @@ func initGoogleDrive() {
 	googledrive.Init()
 }
 
+func initEthClient(rpcUrl string) {
+	err := eth.NewEthClientConfig(rpcUrl)
+
+	if err != nil {
+		log.Fatalf("Failed to initialize Ethereum client: %v", err)
+	}
+}
+
 func initKafka(ctx context.Context) {
 	wg.Add(2)
 
@@ -128,23 +138,11 @@ func initKafka(ctx context.Context) {
 
 	go func() {
 		defer wg.Done()
-		if err := kafka.InitConsumer(config.Env.KafkaBrokers, config.Env.KafkaGroupID); err != nil {
+		if err := kafka.InitConsumer(config.Env.KafkaBrokers, config.Env.KafkaGroupID, []string{"file_uploaded"}); err != nil {
 			log.Fatalf("Failed to initialize Kafka consumer: %v", err)
 		}
 
-		for {
-			select {
-			case <-ctx.Done():
-				log.Println("Kafka consumer stopped")
-				return
-			default:
-				message := kafka.Consume([]string{"file_uploaded"}, 10, 5*time.Second)
-				if message != nil {
-					// Xử lý message ở đây
-					log.Printf("Received message: %s\n", string(message.Value))
-				}
-			}
-		}
+		kafka.Consume(ctx, []string{"file_uploaded"}, 10, 5*time.Second)
 	}()
 
 	// Wait for Kafka to be ready or context cancel
@@ -165,8 +163,9 @@ func main() {
 	defer cancel()
 
 	// Initialize Google Drive and Kafka
-	initGoogleDrive()
-	initKafka(ctx)
+	// initGoogleDrive()
+	// initKafka(ctx)
+	initEthClient(config.Env.EthereumRPCURL)
 
 	// Start HTTP server
 	srv := startServer(cfg, router)

@@ -39,6 +39,9 @@ type Config struct {
 	//Kafka configs
 	KafkaBrokers string
 	KafkaGroupID string
+
+	//Ethereum configs
+	EthereumRPCURL string
 }
 
 func Load() error {
@@ -72,8 +75,11 @@ func Load() error {
 		GOOGLE_DRIVE_REDIRECT_URL:     getEnvOrDefault("GOOGLE_DRIVE_REDIRECT_URL", ""),
 
 		//Kafka configs
-		KafkaBrokers: getEnvOrDefault("KAFKA_BROKERS", "172.29.96.1:9092"),
+		KafkaBrokers: getEnvOrDefault("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID: getEnvOrDefault("KAFKA_GROUP_ID", "my-group"),
+
+		//Ethereum configs
+		EthereumRPCURL: getEnvOrDefault("ETHEREUM_RPC_URL", "https://sepolia.base.org"),
 	}
 
 	return nil

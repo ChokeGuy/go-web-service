@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"log"
-	"web-service/config"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
@@ -23,10 +22,9 @@ func InitProducer(brokers string) error {
 	return nil
 }
 
-func InitConsumer(brokers string, groupID string) error {
-	var err error
-
+func InitConsumer(brokers string, groupID string, topics []string) error {
 	// Initialize Consumer
+	var err error
 	consumer, err = kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":     brokers,
 		"group.id":              groupID,
@@ -42,20 +40,4 @@ func InitConsumer(brokers string, groupID string) error {
 	}
 
 	return nil
-}
-
-func closeKafka() {
-	if producer != nil {
-		producer.Close()
-	}
-	if consumer != nil {
-		consumer.Close()
-	}
-}
-
-func Init() {
-	InitProducer(config.Env.KafkaBrokers)
-	InitConsumer(config.Env.KafkaBrokers, config.Env.KafkaGroupID)
-
-	defer closeKafka()
 }
